@@ -1,85 +1,96 @@
-#define _CRT_SECURE_NO_WARNINGS
 #include <stdlib.h>
 #include <stdio.h>
 #include <winsock2.h>
+#include <windows.h>
 #include <string.h>
 #include <time.h>
 #include <conio.h>
 #include <sstream>
+#include <regex>
+using namespace std;
+#pragma comment(lib, "ws2_32.lib") 
+#define BUFLEN 1000				  
+long long GetCurrentTimeMsec()
+{
+#ifdef _WIN32
+		struct timeval tv;
+		time_t clock;
+		struct tm tm;
+		SYSTEMTIME wtm;
+		GetLocalTime(&wtm);
+		tm.tm_year = wtm.wYear - 1900;
+		tm.tm_mon = wtm.wMonth - 1;
+		tm.tm_mday = wtm.wDay;
+		tm.tm_hour = wtm.wHour;
+		tm.tm_min = wtm.wMinute;
+		tm.tm_sec = wtm.wSecond;
+		tm.tm_isdst = -1;
+		clock = mktime(&tm);
+		tv.tv_sec = clock;
+		tv.tv_usec = wtm.wMilliseconds * 1000;
+		return (tv.tv_sec * 1000 + tv.tv_usec / 1000);
+#else
+        struct timeval tv;
+        gettimeofday(&tv,NULL);
+        return ((unsigned long long)tv.tv_sec * 1000 + (unsigned long long)tv.tv_usec / 1000);
+#endif
+    }
 
-#pragma comment(lib, "ws2_32.lib") // 加载Winsock 2.2 Library
-#define BUFLEN 2000				   // 缓冲区大小
+void Delay(int time)
+{ 
+    clock_t now = clock(); 
+    while(clock()-now<time); 
+} 
 
 void makeNewMsg(char* msg, char* timestr, struct sockaddr_in from);
 int main()
 {
-	printf("[info] UDP测试服务端启动");
-
-	u_short port = 30011;	// server port to connect
-	struct sockaddr_in sin;  // an Internet endpoint address
-	struct sockaddr_in from; // sender address
+	u_short port = 30011;	
+	struct sockaddr_in sock_in;  
+	struct sockaddr_in from; 
 	int fromsize = sizeof(from);
-	SOCKET sock; // socket descriptor
-
+	SOCKET sock; 
 	WSADATA wsadata;
-	WSAStartup(MAKEWORD(2, 2), &wsadata); // 加载winsock library
-	sock = socket(PF_INET, SOCK_DGRAM, IPPROTO_UDP); // 创建UDP socket
-	memset(&sin, 0, sizeof(sin));					 // 清零
-	sin.sin_family = AF_INET;
-	sin.sin_addr.s_addr = INADDR_ANY;
-	sin.sin_port = htons(port);
-	bind(sock, (struct sockaddr*) & sin, sizeof(sin)); //绑定本地端口号（和本地IP地址）
+	WSAStartup(MAKEWORD(2, 2), &wsadata);
+	sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP); 
+	memset(&sock_in, 0, sizeof(sock_in));					 
+	sock_in.sin_port = htons(port);
+	sock_in.sin_family = AF_INET; //指定ipv4
+	sock_in.sin_addr.s_addr = INADDR_ANY;
+	bind(sock, (struct sockaddr*) & sock_in, sizeof(sock_in)); 
 
 	time_t now = time(NULL);
-	printf("成功。\n服务器启动时间：%s", ctime(&now));
-	printf("=======================================\n");
+	printf("[info] UDP测试服务端启动 \n服务器启动时间：%s", ctime(&now));
 
-	char buf[BUFLEN + 1]; // 建立缓冲区
-
-	while (!_kbhit())
+	char buf[BUFLEN + 1];
+	int success_count=0;
+    regex send_time_expr(".*id:(.*?),.*sendtime=(.*?)");
+	while (1)
 	{
 		int recvlen = recvfrom(sock, buf, BUFLEN, 0, (SOCKADDR*)& from, &fromsize);
-		if (recvlen == SOCKET_ERROR)
-		{
-			printf("[-] recvfrom() failed; %d\n", WSAGetLastError());
-			break;
-		}
-		else if (recvlen == 0)
-		{
-			break;
-		}
-		else
-		{
-			time_t now = time(NULL);
-			char* timestr = ctime(&now);
-			buf[recvlen] = '\0'; // 保证以空字符结尾
-			printf("客户端的消息：%s\n", buf);
-			printf("客户端IP地址：%u.%u.%u.%u\n", from.sin_addr.S_un.S_un_b.s_b1, from.sin_addr.S_un.S_un_b.s_b2, from.sin_addr.S_un.S_un_b.s_b3, from.sin_addr.S_un.S_un_b.s_b4);
-			printf("客户端端口号：%hu\n", from.sin_port);
-			printf("时间：%s", timestr);
-			printf("---------------------------------------\n");
-
-			makeNewMsg(buf, timestr, from);
-			sendto(sock, buf, BUFLEN, 0, (SOCKADDR*)& from, sizeof(from));
+		long long recv_time = GetCurrentTimeMsec();
+		time_t now = time(NULL);
+		char* timestr = ctime(&now);
+		buf[recvlen] = '\0'; 
+		string recv_msg(buf);
+		std::smatch match_msg;
+		long long send_time;
+		regex_match(recv_msg,match_msg,send_time_expr);
+		if(match_msg.size()>1){
+			std::stringstream strstream;
+			strstream << match_msg[2].str();
+			strstream >> send_time;
+			printf("收到第%d条消息：%s\n", success_count++ ,recv_msg.c_str());
+			printf("该条消息的发送-接收时间差为: %lld ms\n",recv_time-send_time);
+			if(match_msg[1].str()=="99")
+				break;
 		}
 	}
 	closesocket(sock);
 	WSACleanup();
-
-	printf("服务器已关闭，按任意键退出。\n");
+	printf("接收到的数据包数量：%d\n丢包率：%.3f%%\n",success_count,1.0f*(100-success_count));
+	printf("服务端运行结束\n");
 	getchar();
 	return 0;
 }
 
-/* 构造要发给客户端的字符串，用到了C++特性 */
-void makeNewMsg(char* msg, char* timestr, struct sockaddr_in from)
-{
-	using std::endl;
-	std::ostringstream os;
-	os << "客户端的消息：" << msg << endl;
-	os << "客户端IP地址：" << (int)from.sin_addr.S_un.S_un_b.s_b1 << '.' << (int)from.sin_addr.S_un.S_un_b.s_b2
-		<< '.' << (int)from.sin_addr.S_un.S_un_b.s_b3 << '.' << (int)from.sin_addr.S_un.S_un_b.s_b4 << endl;
-	os << "客户端端口号：" << from.sin_port << endl;
-	os << "时间：" << timestr << std::flush;
-	strncpy(msg, os.str().c_str(), BUFLEN);
-}

@@ -3,10 +3,10 @@
 #include <cstdlib>
 #include <cstdio>
 #include <cstring>
-#include <winsock2.h>
-#include <windows.h>
 #include <string>
 #ifdef _WIN32
+#include <winsock2.h>
+#include <windows.h>
 	#include <ctime>
 #else
 	#include <sys/time.h>
@@ -42,44 +42,43 @@ void Delay(int time)
     clock_t now = clock(); 
     while(clock()-now<time); 
 } 
-#define BUFLEN 2000				   // 缓冲区大小
+#define BUFLEN 1000				   // 缓冲区大小
 #pragma comment(lib, "ws2_32.lib") // 加载winsock 2.2 Llibrary
 
-char test_message[BUFLEN + 1]="test message";
 int connectAndSendto();
 int main()
 {
-	printf("[UDP Client]\n开始udp丢包率测试\n");
+	printf("[info]\n开始udp丢包率测试\n");
 	printf("=======================================\n");
 
 	connectAndSendto();
 
-	printf("客户端运行结束，按任意键退出。\n");
+	printf("运行结束，任意键退出。\n");
 	getchar();
 	return 0;
 }
 
 int connectAndSendto()
 {
-	char host []= "127.0.0.1";
-	u_short serverport = 30011;
-	struct sockaddr_in toAddr;
-	SOCKET sock;
+	struct sockaddr_in socksend; 
+	SOCKET sock; 
 	WSADATA wsadata;
-	WSAStartup(MAKEWORD(2, 2), &wsadata);
-	sock = socket(PF_INET, SOCK_DGRAM, IPPROTO_UDP);
-	memset(&toAddr, 0, sizeof(toAddr));
-	toAddr.sin_family = AF_INET;
-	toAddr.sin_port = htons(serverport);
-	toAddr.sin_addr.s_addr = inet_addr(host);
+	WSAStartup(MAKEWORD(2, 2), &wsadata); //设置winsock版本2.2
+	memset(&socksend, 0, sizeof(socksend));
+	char host []= "127.0.0.1"; //目的地址
+	u_short serverport = 30011; //目的地址端口
+	sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP); //
+	socksend.sin_family = AF_INET;
+	socksend.sin_port = htons(serverport);
+	socksend.sin_addr.s_addr = inet_addr(host);
     char send_message[BUFLEN + 1];
     for(int i=0;i<100;i++){
         long long send_time = GetCurrentTimeMsec();
-        sprintf(send_message,"UDP test id:%2d ,sendtime=%lld",i,send_time);
-        int sendlen = sendto(sock, send_message, BUFLEN, 0, (SOCKADDR*)& toAddr, sizeof(toAddr));
+        sprintf(send_message,"UDP test id:%d,sendtime=%lld",i,send_time);
+        int sendlen = sendto(sock, send_message, BUFLEN, 0, (SOCKADDR*)& socksend, sizeof(socksend));
         if (sendlen == SOCKET_ERROR)
         {
-            printf("[error] 第%3d次发送失败，错误号：%d",i, WSAGetLastError());
+            printf("[error] 第%3d次发送失败",i);
         }
         printf("[info] 第%d次发送成功 发送内容: %s\n",i,send_message);
         Delay(100);
