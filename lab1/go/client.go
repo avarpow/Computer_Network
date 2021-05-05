@@ -14,7 +14,7 @@ func main() {
         os.Exit(1)  
     }
     for i:=0; i<100;i++ {
-        t := fmt.Sprintf("%v",time.Now().UnixNano() / 1e6);
+        t := fmt.Sprintf("%v",time.Now().UnixNano() / 1e6 +2000);
         s := fmt.Sprintf("UDP test id:%d,sendtime=%vms",i,t)
         fmt.Printf("发送第%v条消息:",i)
         fmt.Printf(s+"\n")
