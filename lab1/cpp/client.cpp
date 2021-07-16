@@ -5,86 +5,86 @@
 #include <cstring>
 #include <string>
 #ifdef _WIN32
-#include <winsock2.h>
-#include <windows.h>
-#include <ctime>
+	#include <ctime>
+	#include <windows.h>
+	#include <winsock2.h>
 #else
-#include <sys/time.h>
+	#include <sys/socket.h>
+	#include <sys/time.h>
 #endif
 long long GetCurrentTimeMsec()
 {
 #ifdef _WIN32
-	struct timeval tv;
-	time_t clock;
-	struct tm tm;
-	SYSTEMTIME wtm;
-	GetLocalTime(&wtm);
-	tm.tm_year = wtm.wYear - 1900;
-	tm.tm_mon = wtm.wMonth - 1;
-	tm.tm_mday = wtm.wDay;
-	tm.tm_hour = wtm.wHour;
-	tm.tm_min = wtm.wMinute;
-	tm.tm_sec = wtm.wSecond;
-	tm.tm_isdst = -1;
-	clock = mktime(&tm);
-	tv.tv_sec = clock;
-	tv.tv_usec = wtm.wMilliseconds * 1000;
-	return (tv.tv_sec * 1000 + tv.tv_usec / 1000);
+		struct timeval tv;
+		time_t clock;
+		struct tm tm;
+		SYSTEMTIME wtm;
+		GetLocalTime(&wtm);
+		tm.tm_year = wtm.wYear - 1900;
+		tm.tm_mon = wtm.wMonth - 1;
+		tm.tm_mday = wtm.wDay;
+		tm.tm_hour = wtm.wHour;
+		tm.tm_min = wtm.wMinute;
+		tm.tm_sec = wtm.wSecond;
+		tm.tm_isdst = -1;
+		clock = mktime(&tm);
+		tv.tv_sec = clock;
+		tv.tv_usec = wtm.wMilliseconds * 1000;
+		return (tv.tv_sec * 1000 + tv.tv_usec / 1000);
 #else
-	struct timeval tv;
-	gettimeofday(&tv, NULL);
-	return ((unsigned long long)tv.tv_sec * 1000 + (unsigned long long)tv.tv_usec / 1000);
+        struct timeval tv;
+        gettimeofday(&tv,NULL);
+        return ((unsigned long long)tv.tv_sec * 1000 + (unsigned long long)tv.tv_usec / 1000);
 #endif
-}
+    }
 
 void Delay(int time)
-{
-	clock_t now = clock();
-	while (clock() - now < time)
-		;
-}
-#define BUFLEN 1000				   // »º³åÇø´óÐ¡
-#pragma comment(lib, "ws2_32.lib") // ¼ÓÔØwinsock 2.2 Llibrary
+{ 
+    clock_t now = clock(); 
+    while(clock()-now<time); 
+} 
+#define BUFLEN 2000				   // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ð¡
+#pragma comment(lib, "ws2_32.lib") // ï¿½ï¿½ï¿½ï¿½winsock 2.2 Llibrary
 
+char test_message[BUFLEN + 1]="test message";
 int connectAndSendto();
 int main()
 {
-	printf("[info]\n¿ªÊ¼udp¶ª°üÂÊ²âÊÔ\n");
+	printf("[UDP Client]\nï¿½ï¿½Ê¼udpï¿½ï¿½ï¿½ï¿½ï¿½Ê²ï¿½ï¿½ï¿½\n");
 	printf("=======================================\n");
 
 	connectAndSendto();
 
-	printf("ÔËÐÐ½áÊø£¬ÈÎÒâ¼üÍË³ö¡£\n");
+	printf("ï¿½Í»ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ð½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ë³ï¿½ï¿½ï¿½\n");
 	getchar();
 	return 0;
 }
 
 int connectAndSendto()
 {
-	struct sockaddr_in socksend;
+	char host []= "172.18.198.217";
+	u_short serverport = 30011;
+	struct sockaddr_in toAddr;
 	SOCKET sock;
 	WSADATA wsadata;
-	WSAStartup(MAKEWORD(2, 2), &wsadata); //ÉèÖÃwinsock°æ±¾2.2
-	memset(&socksend, 0, sizeof(socksend));
-	char host[] = "127.0.0.1";						 //Ä¿µÄµØÖ·
-	u_short serverport = 30011;						 //Ä¿µÄµØÖ·¶Ë¿Ú
-	sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP); //
-	socksend.sin_family = AF_INET;
-	socksend.sin_port = htons(serverport);
-	socksend.sin_addr.s_addr = inet_addr(host);
-	char send_message[BUFLEN + 1];
-	for (int i = 0; i < 10000; i++)
-	{
-		long long send_time = GetCurrentTimeMsec();
-		sprintf(send_message, "UDP test id:%d,sendtime=%lld", i, send_time);
-		int sendlen = sendto(sock, send_message, BUFLEN, 0, (SOCKADDR *)&socksend, sizeof(socksend));
-		if (sendlen == SOCKET_ERROR)
-		{
-			printf("[error] µÚ%3d´Î·¢ËÍÊ§°Ü", i);
-		}
-		printf("[info] µÚ%d´Î·¢ËÍ³É¹¦ ·¢ËÍÄÚÈÝ: %s\n", i, send_message);
-		//Delay(1);
-	}
+	WSAStartup(MAKEWORD(2, 2), &wsadata);
+	sock = socket(PF_INET, SOCK_DGRAM, IPPROTO_UDP);
+	memset(&toAddr, 0, sizeof(toAddr));
+	toAddr.sin_family = AF_INET;
+	toAddr.sin_port = htons(serverport);
+	toAddr.sin_addr.s_addr = inet_addr(host);
+    char send_message[BUFLEN + 1];
+    for(int i=0;i<100;i++){
+        long long send_time = GetCurrentTimeMsec();
+        sprintf(send_message,"UDP test id:%2d ,sendtime=%lld",i,send_time);
+        int sendlen = sendto(sock, send_message, BUFLEN, 0, (SOCKADDR*)& toAddr, sizeof(toAddr));
+        if (sendlen == SOCKET_ERROR)
+        {
+            printf("[error] ï¿½ï¿½%3dï¿½Î·ï¿½ï¿½ï¿½Ê§ï¿½Ü£ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Å£ï¿½%d",i, WSAGetLastError());
+        }
+        printf("[info] ï¿½ï¿½%dï¿½Î·ï¿½ï¿½Í³É¹ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½: %s\n",i,send_message);
+        Delay(100);
+    }
 	closesocket(sock);
 	WSACleanup();
 	return 1;
